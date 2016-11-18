@@ -1,14 +1,4 @@
 $(CXX) = g++
-# compiler
-# ignores -Wall warnings
-# -pedantic warns on language extension
-# -Werror turns warnings into errors
-# -g enable debugging
-CFLAGS=-Wall -pedantic -Werror -g
-# look in current directory for include files
-CPPFLAGS=-I.
-LDFLAGS=-lm
-# delete without asking
 RM=rm -f
 
 TARGET=readpng
@@ -20,11 +10,11 @@ all: $(TARGET)
 
 # regular pattern
 %: %.cpp
-	$(CXX) $(CFLAGS) $(LDFLAGS) $< -o $@ -lpng -lz
+	$(CXX) `Magick++-config --cxxflags --cppflags` $< -o $@ `Magick++-config --ldflags --libs`
 
 # target
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lpng -lz
+	$(CXX) `Magick++-config --cxxflags --cppflags` -O2 $^ -o $@ `Magick++-config --ldflags --libs`
 
 # clean up
 clean:
