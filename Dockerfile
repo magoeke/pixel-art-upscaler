@@ -8,4 +8,4 @@ RUN mkdir files
 
 WORKDIR "files"
 
-CMD "make"
+CMD make && ./readpng
