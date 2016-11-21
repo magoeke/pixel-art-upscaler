@@ -14,7 +14,7 @@ int main() {
 	try {
 		old->read("image.png");
 		Magick::Geometry old_geo = old->size();
-		old->type( Magick::GrayscaleType );
+		//old->type( Magick::GrayscaleType );
 		
 		ssize_t number_of_channels = MagickCore::GetPixelChannels(old->constImage());
 
@@ -30,14 +30,12 @@ int main() {
 
 		int idx = 0;
 		int idy = 0;
-		for(ssize_t y = 0; y < new_geo.height() * number_of_channels; ++y) {
+		//for(ssize_t y = 0; y < new_geo.height() * number_of_channels; ++y) {
+		for(ssize_t y = 0; y < result->rows(); ++y) {
 			idy = y / FACTOR;
-			for(ssize_t x = 0; x < new_geo.width(); ++x) {				
+			for(ssize_t x = 0; x < result->columns() * number_of_channels; ++x) {				
 				idx = x / FACTOR;
-				//for(ssize_t z = 0; z < 3; ++z) {
-				//if(((( y * new_geo.width()) + x) % 3) == 2)
-					new_pixels[( y * new_geo.width()) + x] = old_pixels[(idy * old_geo.width())+idx];
-				//}
+				new_pixels[( y * new_geo.width() * number_of_channels) + x] = old_pixels[(idy * old_geo.width() * number_of_channels)+idx];
 			}
 		}
 
