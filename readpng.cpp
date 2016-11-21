@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#define FACTOR 4
+#define FACTOR 2
 
 int main() {
 	std::cout << "Start to read png" << std::endl;
@@ -16,6 +16,8 @@ int main() {
 		Magick::Geometry old_geo = old->size();
 		old->type( Magick::GrayscaleType );
 		
+		ssize_t number_of_channels = MagickCore::GetPixelChannels(old->constImage());
+
 		Magick::Geometry new_geo(old_geo.width() * FACTOR, old_geo.height() * FACTOR);
 		Magick::Image* result = new Magick::Image(new_geo, Magick::Color("white"));
 		result->type( old->type() );
@@ -28,11 +30,14 @@ int main() {
 
 		int idx = 0;
 		int idy = 0;
-		for(ssize_t y = 0; y < new_geo.height(); ++y) {
+		for(ssize_t y = 0; y < new_geo.height() * number_of_channels; ++y) {
 			idy = y / FACTOR;
-			for(ssize_t x = 0; x < new_geo.width(); ++x) {
+			for(ssize_t x = 0; x < new_geo.width(); ++x) {				
 				idx = x / FACTOR;
-				new_pixels[( y * new_geo.width()) + x] = old_pixels[(idy * old_geo.width())+idx];
+				//for(ssize_t z = 0; z < 3; ++z) {
+				//if(((( y * new_geo.width()) + x) % 3) == 2)
+					new_pixels[( y * new_geo.width()) + x] = old_pixels[(idy * old_geo.width())+idx];
+				//}
 			}
 		}
 
@@ -43,6 +48,8 @@ int main() {
 	} catch(Magick::Exception &error_) {
 		std::cout << "An error encountered. " << error_.what() << std::endl;
 	}
+
+	std::cout << "Finished to process image" << std::endl;
 
 	return 0;
 }
