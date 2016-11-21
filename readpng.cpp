@@ -9,22 +9,22 @@
 int main() {
 	std::cout << "Start to read png" << std::endl;
 
-	Magick::Image old;
+	Magick::Image* old = new Magick::Image();
 
 	try {
-		old.read("image.png");
-		Magick::Geometry old_geo = old.size();
-		old.type( Magick::GrayscaleType );
+		old->read("image.png");
+		Magick::Geometry old_geo = old->size();
+		old->type( Magick::GrayscaleType );
 		
 		Magick::Geometry new_geo(old_geo.width() * FACTOR, old_geo.height() * FACTOR);
-		Magick::Image result(new_geo, Magick::Color("black"));
-		result.type( Magick::GrayscaleType );
+		Magick::Image* result = new Magick::Image(new_geo, Magick::Color("white"));
+		result->type( old->type() );
 
 		// modify pixels
-		result.modifyImage();
+		result->modifyImage();
 
-		Magick::Quantum *old_pixels = old.getPixels(0, 0, old_geo.width(), old_geo.height());
-		Magick::Quantum *new_pixels = result.getPixels(0, 0, new_geo.width(), new_geo.height());
+		Magick::Quantum *old_pixels = old->getPixels(0, 0, old_geo.width(), old_geo.height());
+		Magick::Quantum *new_pixels = result->getPixels(0, 0, new_geo.width(), new_geo.height());
 
 		int idx = 0;
 		int idy = 0;
@@ -36,8 +36,10 @@ int main() {
 			}
 		}
 
-		result.syncPixels();
-		result.write("image2.png");
+		result->syncPixels();
+		result->write("image2.png");
+		delete old;
+		delete result;
 	} catch(Magick::Exception &error_) {
 		std::cout << "An error encountered. " << error_.what() << std::endl;
 	}
