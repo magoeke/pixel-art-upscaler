@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#define FACTOR 2
+#define FACTOR 4
 
 int main() {
 	std::cout << "Start to read png" << std::endl;
@@ -22,6 +22,14 @@ int main() {
 		Magick::Image* result = new Magick::Image(new_geo, Magick::Color("white"));
 		result->type( old->type() );
 
+
+		// some verbose output
+
+		std::cout << "Original image channels: " << number_of_channels << std::endl;
+		std::cout << "New image channels: " << MagickCore::GetPixelChannels(result->constImage()) << std::endl;
+		std::cout << "Images have the same ImageMagick type? " << (old->type() == result->type()) << std::endl;
+		// -------------------
+
 		// modify pixels
 		result->modifyImage();
 
@@ -30,12 +38,12 @@ int main() {
 
 		int idx = 0;
 		int idy = 0;
-		//for(ssize_t y = 0; y < new_geo.height() * number_of_channels; ++y) {
 		for(ssize_t y = 0; y < result->rows(); ++y) {
 			idy = y / FACTOR;
 			for(ssize_t x = 0; x < result->columns() * number_of_channels; ++x) {				
 				idx = x / FACTOR;
-				new_pixels[( y * new_geo.width() * number_of_channels) + x] = old_pixels[(idy * old_geo.width() * number_of_channels)+idx];
+				new_pixels[( y * new_geo.width() * number_of_channels) + x] = 
+					old_pixels[(idy * old_geo.width() * number_of_channels)+idx];
 			}
 		}
 
