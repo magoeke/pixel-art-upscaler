@@ -33,17 +33,19 @@ int main() {
 		// modify pixels
 		result->modifyImage();
 
-		Magick::Quantum *old_pixels = old->getPixels(0, 0, old_geo.width(), old_geo.height());
-		Magick::Quantum *new_pixels = result->getPixels(0, 0, new_geo.width(), new_geo.height());
+		Magick::Quantum *old_pixels = old->getPixels(0, 0, old->columns(), old->rows());
+		Magick::Quantum *new_pixels = result->getPixels(0, 0, result->columns(), result->rows());
 
 		int idx = 0;
-		int idy = 0;
+		int idy = 0; 		
 		for(ssize_t y = 0; y < result->rows(); ++y) {
 			idy = y / FACTOR;
-			for(ssize_t x = 0; x < result->columns() * number_of_channels; ++x) {				
+			for(ssize_t x = 0; x < result->columns(); ++x) {				
 				idx = x / FACTOR;
-				new_pixels[( y * new_geo.width() * number_of_channels) + x] = 
-					old_pixels[(idy * old_geo.width() * number_of_channels)+idx];
+				for(ssize_t z = 0; z < number_of_channels; ++z) {
+					Magick::Quantum old = old_pixels[(idy * old_geo.width() * number_of_channels)+ (idx * number_of_channels) + z];
+					new_pixels[( y * new_geo.width() * number_of_channels) + (x * number_of_channels) + z] = old;
+				}
 			}
 		}
 
