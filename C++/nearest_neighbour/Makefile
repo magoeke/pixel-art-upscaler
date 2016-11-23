@@ -1,7 +1,7 @@
 $(CXX) = g++
 RM=rm -f
 
-TARGET=readpng
+TARGET=nearest_neighbor
 SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard *.h)
 OBJECTS=$(patsubst %.c, %.o,$(SOURCES))

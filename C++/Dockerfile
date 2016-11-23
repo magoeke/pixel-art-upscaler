@@ -7,4 +7,4 @@ RUN cd ImageMagick-7.0.3-7 && ./configure && make && make install && ldconfig /u
 RUN mkdir files
 
 WORKDIR "files"
-CMD make && ./readpng
+CMD make 
