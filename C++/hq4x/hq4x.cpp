@@ -193,7 +193,6 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
 	Magick::Quantum *dRowP = (Magick::Quantum *) dp;
 	uint32_t yuv1, yuv2;
 
-
     for (j=0; j<Yres; j++)
     {
         if (j>0)      prevline = -spL; else prevline = 0;
@@ -248,7 +247,7 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
                 }
                 flag <<= 1;
             }
-
+                     
             switch (pattern)
             {
                 case 0:
@@ -5223,6 +5222,7 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
                         break;
                     }
             }
+
             sp++;
             dp += 4;
         }
@@ -5246,7 +5246,7 @@ int main() {
 	try {
 		old->read("image.png");
 		Magick::Geometry old_geo = old->size();
-		old->type( Magick::GrayscaleType );
+		//old->type( Magick::GrayscaleType );
 		
 		ssize_t number_of_channels = MagickCore::GetPixelChannels(old->constImage());
 
