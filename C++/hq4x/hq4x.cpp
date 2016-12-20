@@ -1,3 +1,47 @@
+#include <unistd.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <IL/il.h>
+#include <stdint.h>
+#include "common.h"
+
+
+/*
+ * Copyright (C) 2010 Cameron Zemek ( grom@zeminvaders.net)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ */
+
+uint32_t   RGBtoYUV[16777216];
+uint32_t   YUV1, YUV2;
+
+void hqxInit(void)
+{
+    /* Initalize RGB to YUV lookup table */
+    uint32_t c, r, g, b, y, u, v;
+    for (c = 0; c < 16777215; c++) {
+        r = (c & 0xFF0000) >> 16;
+        g = (c & 0x00FF00) >> 8;
+        b = c & 0x0000FF;
+        y = (uint32_t)(0.299*r + 0.587*g + 0.114*b);
+        u = (uint32_t)(-0.169*r - 0.331*g + 0.5*b) + 128;
+        v = (uint32_t)(0.5*r - 0.419*g - 0.081*b) + 128;
+        RGBtoYUV[c] = (y << 16) + (u << 8) + v;
+    }
+}
+
 /*
  * Copyright (C) 2003 Maxim Stepin ( maxst@hiend3d.com )
  *
@@ -17,17 +61,6 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-
-#include <iostream>
-
-#include <Magick++.h>
-
-#include <math.h>
-
-#include "common.h"
-#include <stdint.h>
-
-#define FACTOR 4
 
 #define PIXEL00_0     *dp = w[5];
 #define PIXEL00_11    *dp = Interp1(w[5], w[4]);
@@ -170,28 +203,27 @@
 #define PIXEL33_81    *(dp+dpL+dpL+dpL+3) = Interp8(w[5], w[6]);
 #define PIXEL33_82    *(dp+dpL+dpL+dpL+3) = Interp8(w[5], w[8]);
 
-void hq4x(Magick::Image* source, Magick::Image* destination) {
-	// set variables from original source
-	int Xres = source->columns();
-	int Yres = source->rows();
-	int srb = Xres * sizeof(Magick::Quantum);
-	int drb = destination->columns() * sizeof(Magick::Quantum);
+void hq4x_32_rb( uint32_t * sp, uint32_t srb, uint32_t * dp, uint32_t drb, int Xres, int Yres )
+{
+    int  i, j, k;
+    int  prevline, nextline;
+    uint32_t w[10];
+    int dpL = (drb >> 2);
+    int spL = (srb >> 2);
+    uint8_t *sRowP = (uint8_t *) sp;
+    uint8_t *dRowP = (uint8_t *) dp;
+    uint32_t yuv1, yuv2;
 
-	// get Pixels
-	Magick::Quantum *sp = source->getPixels(0, 0, source->columns(), source->rows());
-	Magick::Quantum *dp = destination->getPixels(0, 0, destination->columns(), destination->rows());
-
-	// copied code
-	int  i, j, k;
-	int  prevline, nextline;
-	uint32_t w[10];
-	int dpL = (drb >> 2);
-	int spL = (srb >> 2);
-	//uint8_t *sRowP = (uint8_t *) sp;
-	//uint8_t *dRowP = (uint8_t *) dp;
-	Magick::Quantum *sRowP = (Magick::Quantum *) sp;
-	Magick::Quantum *dRowP = (Magick::Quantum *) dp;
-	uint32_t yuv1, yuv2;
+    //   +----+----+----+
+    //   |    |    |    |
+    //   | w1 | w2 | w3 |
+    //   +----+----+----+
+    //   |    |    |    |
+    //   | w4 | w5 | w6 |
+    //   +----+----+----+
+    //   |    |    |    |
+    //   | w7 | w8 | w9 |
+    //   +----+----+----+
 
     for (j=0; j<Yres; j++)
     {
@@ -233,7 +265,7 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
             int pattern = 0;
             int flag = 1;
 
-            yuv1 = w[5];
+            yuv1 = rgb_to_yuv(w[5]);
 
             for (k=1; k<=9; k++)
             {
@@ -241,13 +273,13 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
 
                 if ( w[k] != w[5] )
                 {
-                    yuv2 = w[k];
+                    yuv2 = rgb_to_yuv(w[k]);
                     if (yuv_diff(yuv1, yuv2))
                         pattern |= flag;
                 }
                 flag <<= 1;
             }
-                     
+
             switch (pattern)
             {
                 case 0:
@@ -5222,58 +5254,123 @@ void hq4x(Magick::Image* source, Magick::Image* destination) {
                         break;
                     }
             }
-
             sp++;
             dp += 4;
         }
 
         sRowP += srb;
-        //sp = (uint32_t *) sRowP;
-	sp = (Magick::Quantum *) sRowP;
+        sp = (uint32_t *) sRowP;
 
         dRowP += drb * 4;
-        //dp = (uint32_t *) dRowP;
-	dp = (Magick::Quantum *) dRowP;
+        dp = (uint32_t *) dRowP;
     }
 }
 
+void hq4x_32( uint32_t * sp, uint32_t * dp, int Xres, int Yres )
+{
+    uint32_t rowBytesL = Xres * 4;
+    hq4x_32_rb(sp, rowBytesL, dp, rowBytesL * 4, Xres, Yres);
+}
 
-int main() {
-	std::cout << "Start to read png" << std::endl;
+/*
+ * Copyright (C) 2010 Cameron Zemek ( grom@zeminvaders.net)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ */
 
-	Magick::Image* old = new Magick::Image();
+static inline uint32_t swapByteOrder(uint32_t ui)
+{
+    return (ui >> 24) | ((ui << 8) & 0x00FF0000) | ((ui >> 8) & 0x0000FF00) | (ui << 24);
+}
 
-	try {
-		old->read("image.png");
-		Magick::Geometry old_geo = old->size();
-		//old->type( Magick::GrayscaleType );
-		
-		ssize_t number_of_channels = MagickCore::GetPixelChannels(old->constImage());
+int main(int argc, char *argv[])
+{
+    int scaleBy = 4;
 
-		Magick::Geometry new_geo(old_geo.width() * FACTOR, old_geo.height() * FACTOR);
-		Magick::Image* result = new Magick::Image(new_geo, Magick::Color("white"));
-		result->type( old->type() );
+    ILuint handle, width, height;
 
-		// convert color space
-		old->colorSpace(MagickCore::YUVColorspace);
-		result->colorSpace(MagickCore::YUVColorspace);
+    const char *szFilenameIn = "image.png";
+    const char *szFilenameOut = "image2.png";
 
-		// modify pixels
-		result->modifyImage();
+    ilInit();
+    ilEnable(IL_ORIGIN_SET);
+    ilGenImages(1, &handle);
+    ilBindImage(handle);
 
-		
-		hq4x(old, result);
+    // Load image
+    ILboolean loaded = ilLoadImage(szFilenameIn);
+    if (loaded == IL_FALSE) {
+        fprintf(stderr, "ERROR: can't load '%s'\n", szFilenameIn);
+        return 1;
+    }
+    width = ilGetInteger(IL_IMAGE_WIDTH);
+    height = ilGetInteger(IL_IMAGE_HEIGHT);
 
+    // Allocate memory for image data
+    size_t srcSize = width * height * sizeof(uint32_t);
+    uint8_t *srcData = (uint8_t *) malloc(srcSize);
+    size_t destSize = width * scaleBy * height * scaleBy * sizeof(uint32_t);
+    uint8_t *destData = (uint8_t *) malloc(destSize);
 
-		result->syncPixels();
-		result->write("image2.png");
-		delete old;
-		delete result;
-	} catch(Magick::Exception &error_) {
-		std::cout << "An error encountered. " << error_.what() << std::endl;
-	}
+    // Init srcData from loaded image
+    // We want the pixels in BGRA format so that when converting to uint32_t
+    // we get a RGB value due to little-endianness.
+    ilCopyPixels(0, 0, 0, width, height, 1, IL_BGRA, IL_UNSIGNED_BYTE, srcData);
 
-	std::cout << "Finished to process image" << std::endl;
+    uint32_t *sp = (uint32_t *) srcData;
+    uint32_t *dp = (uint32_t *) destData;
 
-	return 0;
+    // If big endian we have to swap the byte order to get RGB values
+    #ifdef WORDS_BIGENDIAN
+    uint32_t *spTemp = sp;
+    for (i = 0; i < srcSize >> 2; i++) {
+        spTemp[i] = swapByteOrder(spTemp[i]);
+    }
+    #endif
+
+    hqxInit();
+    hq4x_32(sp, dp, width, height);
+ 
+
+    // If big endian we have to swap byte order of destData to get BGRA format
+    #ifdef WORDS_BIGENDIAN
+    uint32_t *dpTemp = dp;
+    for (i = 0; i < destSize >> 2; i++) {
+        dpTemp[i] = swapByteOrder(dpTemp[i]);
+    }
+    #endif
+
+    // Copy destData into image
+    ilTexImage(width * scaleBy, height * scaleBy, 0, 4, IL_BGRA, IL_UNSIGNED_BYTE, destData);
+
+    // Free image data
+    free(srcData);
+    free(destData);
+
+    // Save image
+    ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE); // No alpha channel
+    ilHint(IL_COMPRESSION_HINT, IL_USE_COMPRESSION);
+    ilEnable(IL_FILE_OVERWRITE);
+    ILboolean saved = ilSaveImage(szFilenameOut);
+
+    ilDeleteImages(1, &handle);
+
+    if (saved == IL_FALSE) {
+        fprintf(stderr, "ERROR: can't save '%s'\n", szFilenameOut);
+        return 1;
+    }
+
+    return 0;
 }

@@ -1,63 +1,112 @@
 #include <iostream>
-
-#include <Magick++.h>
-
-#include <math.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <IL/il.h>
+#include <stdint.h>
 
 #define FACTOR 4
 
+/*
+ * Copyright (C) 2010 Cameron Zemek ( grom@zeminvaders.net)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ */
+
 int main() {
-	std::cout << "Start to read png" << std::endl;
+    std::cout << "Start to read png" << std::endl;
+    
+    ILuint handle, width, height;
 
-	Magick::Image* old = new Magick::Image();
+    const char *szFilenameIn = "image.png";
+    const char *szFilenameOut = "image2.png";
+	
+    ilInit();
+    ilEnable(IL_ORIGIN_SET);
+    ilGenImages(1, &handle);
+    ilBindImage(handle);
 
-	try {
-		old->read("image.png");
-		Magick::Geometry old_geo = old->size();
-		//old->type( Magick::GrayscaleType );
-		
-		ssize_t number_of_channels = MagickCore::GetPixelChannels(old->constImage());
+    // Load image
+    ILboolean loaded = ilLoadImage(szFilenameIn);
+    if (loaded == IL_FALSE) {
+        fprintf(stderr, "ERROR: can't load '%s'\n", szFilenameIn);
+        return 1;
+    }
+    width = ilGetInteger(IL_IMAGE_WIDTH);
+    height = ilGetInteger(IL_IMAGE_HEIGHT);
 
-		Magick::Geometry new_geo(old_geo.width() * FACTOR, old_geo.height() * FACTOR);
-		Magick::Image* result = new Magick::Image(new_geo, Magick::Color("white"));
-		result->type( old->type() );
+    // Allocate memory for image data
+    size_t srcSize = width * height * sizeof(uint32_t);
+    uint8_t *srcData = (uint8_t *) malloc(srcSize);
+    size_t destSize = width * FACTOR * height * FACTOR * sizeof(uint32_t);
+    uint8_t *destData = (uint8_t *) malloc(destSize);
+
+    // Init srcData from loaded image
+    // We want the pixels in BGRA format so that when converting to uint32_t
+    // we get a RGB value due to little-endianness.
+    ilCopyPixels(0, 0, 0, width, height, 1, IL_BGRA, IL_UNSIGNED_BYTE, srcData);
+
+    uint32_t *sp = (uint32_t *) srcData;
+    uint32_t *dp = (uint32_t *) destData;
+
+    // If big endian we have to swap the byte order to get RGB values
+    #ifdef WORDS_BIGENDIAN
+    uint32_t *spTemp = sp;
+    for (i = 0; i < srcSize >> 2; i++) {
+        spTemp[i] = swapByteOrder(spTemp[i]);
+    }
+    #endif
 
 
-		// some verbose output
+    // -------------------------------------------------------------- nearest neighbor
+    for(int row = 0; row < height * FACTOR; ++row) {
+        for(int col = 0; col < width * FACTOR; ++col) {
+            dp[(row * width * FACTOR + col)] = sp[((row / FACTOR) * width + (col / FACTOR))];
+        }
+    }
+    // --------------------------------------------------------------
 
-		std::cout << "Original image channels: " << number_of_channels << std::endl;
-		std::cout << "New image channels: " << MagickCore::GetPixelChannels(result->constImage()) << std::endl;
-		std::cout << "Images have the same ImageMagick type? " << (old->type() == result->type()) << std::endl;
-		// -------------------
 
-		// modify pixels
-		result->modifyImage();
+    // If big endian we have to swap byte order of destData to get BGRA format
+    #ifdef WORDS_BIGENDIAN
+    uint32_t *dpTemp = dp;
+    for (i = 0; i < destSize >> 2; i++) {
+        dpTemp[i] = swapByteOrder(dpTemp[i]);
+    }
+    #endif
 
-		Magick::Quantum *old_pixels = old->getPixels(0, 0, old->columns(), old->rows());
-		Magick::Quantum *new_pixels = result->getPixels(0, 0, result->columns(), result->rows());
+    // Copy destData into image
+    ilTexImage(width * FACTOR, height * FACTOR, 0, 4, IL_BGRA, IL_UNSIGNED_BYTE, destData);
 
-		int idx = 0;
-		int idy = 0; 		
-		for(ssize_t y = 0; y < result->rows(); ++y) {
-			idy = y / FACTOR;
-			for(ssize_t x = 0; x < result->columns(); ++x) {				
-				idx = x / FACTOR;
-				for(ssize_t z = 0; z < number_of_channels; ++z) {
-					Magick::Quantum old = old_pixels[(idy * old_geo.width() * number_of_channels)+ (idx * number_of_channels) + z];
-					new_pixels[( y * new_geo.width() * number_of_channels) + (x * number_of_channels) + z] = old;
-				}
-			}
-		}
+    // Free image data
+    free(srcData);
+    free(destData);
 
-		result->syncPixels();
-		result->write("image2.png");
-		delete old;
-		delete result;
-	} catch(Magick::Exception &error_) {
-		std::cout << "An error encountered. " << error_.what() << std::endl;
-	}
+    // Save image
+    ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE); // No alpha channel
+    ilHint(IL_COMPRESSION_HINT, IL_USE_COMPRESSION);
+    ilEnable(IL_FILE_OVERWRITE);
+    ILboolean saved = ilSaveImage(szFilenameOut);
+
+    ilDeleteImages(1, &handle);
+
+    if (saved == IL_FALSE) {
+        fprintf(stderr, "ERROR: can't save '%s'\n", szFilenameOut);
+        return 1;
+    }
 
 	std::cout << "Finished to process image" << std::endl;
-
 	return 0;
 }

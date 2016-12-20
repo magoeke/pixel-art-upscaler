@@ -1,10 +1,8 @@
 FROM ubuntu:16.04
 
-RUN apt-get update && apt-get install -y build-essential wget pkg-config libpng-dev && rm -rf /var/lib/apt/lists/*
-RUN wget https://www.imagemagick.org/download/ImageMagick.tar.gz && tar xvzf ImageMagick.tar.gz
-
-RUN cd ImageMagick-7.0.3-7 && ./configure && make && make install && ldconfig /usr/local/lib
+RUN apt-get update && apt-get install -y build-essential pkg-config libpng-dev libdevil-dev && rm -rf /var/lib/apt/lists/*
 RUN mkdir files
+RUN apt-get update && apt-get install -y valgrind && rm -rf /var/lib/apt/lists/*
 
 WORKDIR "files"
 CMD make 

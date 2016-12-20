@@ -38,13 +38,13 @@
 #define trV   0x00000006
 
 /* RGB to YUV lookup table */
-//extern uint32_t RGBtoYUV[16777216];
+extern uint32_t RGBtoYUV[16777216];
 
-/*static inline uint32_t rgb_to_yuv(uint32_t c)
+static inline uint32_t rgb_to_yuv(uint32_t c)
 {
     // Mask against MASK_RGB to discard the alpha channel
     return RGBtoYUV[MASK_RGB & c];
-}*/
+}
 
 /* Test if there is difference in color */
 static inline int yuv_diff(uint32_t yuv1, uint32_t yuv2) {
@@ -55,8 +55,7 @@ static inline int yuv_diff(uint32_t yuv1, uint32_t yuv2) {
 
 static inline int Diff(uint32_t c1, uint32_t c2)
 {
-    //return yuv_diff(rgb_to_yuv(c1), rgb_to_yuv(c2));
-    return yuv_diff(c1, c2);
+    return yuv_diff(rgb_to_yuv(c1), rgb_to_yuv(c2));
 }
 
 /* Interpolate functions */
