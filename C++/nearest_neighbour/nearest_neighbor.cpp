@@ -4,7 +4,6 @@
 
 #define FACTOR 4
 
-
 void nearest_neighbor(Image *org, Image *res, int factor) {
     uint32_t *dp = res->getData();
     uint32_t *sp = org->getData();
