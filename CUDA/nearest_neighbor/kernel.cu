@@ -9,18 +9,19 @@
 
 #define FACTOR 4
 
-__global__ void nearest_neighbor(uint32_t *dp, uint32_t *sp, ILuint height, ILuint width, int factor)
+__global__ void nearest_neighbor(uint32_t *dp, uint32_t *sp, ILuint width)
 {
-	for (int row = 0; row < height; ++row) {
-		for (int col = 0; col < width; ++col) {
-			dp[(row * width + col)] = sp[((row / factor) * width/factor + (col / factor))];
-		}
-	}
+	int i = threadIdx.x + blockDim.x * blockIdx.x;
+
+	int row = i / width;
+	int col = i % width;
+	dp[i] = sp[((row / FACTOR) * width/FACTOR + (col / FACTOR))];
 }
 
 
 int main()
 {
+
 	ILuint handle;
 	ilInit();
 	ilEnable(IL_ORIGIN_SET);
@@ -28,14 +29,16 @@ int main()
 	ilBindImage(handle);
 	cudaError_t cudaStatus;
 
+	// get device properties
+	cudaDeviceProp deviceProp;
+	cudaGetDeviceProperties(&deviceProp, 0);
 
 	std::cout << "Read images" << std::endl;
 	Image *org = new Image("image.png");
 	Image *res = new Image("image2.png", org->getWidth() * FACTOR, org->getHeight() * FACTOR);
 
 	std::cout << "Execute nearest neighbor algorithm" << std::endl;
-	
-	uint32_t *input, *out, *temp;
+	uint32_t *input, *out;
 	
 	// take first device
 	cudaStatus = cudaSetDevice(0);
@@ -47,11 +50,14 @@ int main()
 	// copy original image to GPU
 	cudaMemcpy(input, org->getData(), org->getHeight() * org->getWidth() * sizeof(uint32_t), cudaMemcpyHostToDevice);
 	
+	// calculate blockdimension and thread size
+	int blockdimension = (res->getHeight() * res->getWidth()) / deviceProp.maxThreadsPerBlock;
+	int threadsize = deviceProp.maxThreadsPerBlock;
+
 	// Execute Kernel and measure time
 	GpuTimer timer;
-
 	timer.Start();
-	nearest_neighbor<<<1,1>>>(out, input, res->getHeight(), res->getWidth(), 4);
+	nearest_neighbor<<<blockdimension, threadsize>>>(out, input, res->getWidth());
 	
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();
@@ -84,6 +90,8 @@ int main()
 
 	cudaFree(input);
 	cudaFree(out);
+
+	std:getchar();
 
     return 0;
 }
