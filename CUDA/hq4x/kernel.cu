@@ -8,6 +8,7 @@
 #include "image.h"
 #include <cstdio>
 #include <iostream>
+#include "gputimer.h"
 
 #define FACTOR 4
 
@@ -251,17 +252,18 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy)
 	cudaMemcpy(input, sp, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
 	cudaMemcpy(yuv, orgy, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
-	int blockdimension = ((Xres*Yres) / deviceProp.maxThreadsPerBlock) + 1;
+	int blockdimension = ((Xres*Yres) > deviceProp.maxThreadsPerBlock) ? ((Xres*Yres) / deviceProp.maxThreadsPerBlock) : 1;
 	//fprintf(stderr, "%d", blockdimension);
+	GpuTimer timer;
+	timer.Start();
+
 	hq4x<<<blockdimension, deviceProp.maxThreadsPerBlock>>>(input, rowBytesL, out, rowBytesL*FACTOR, Xres, Yres, yuv, deviceProp.maxThreadsPerBlock);
 	//hq4x_32_rb(sp, rowBytesL, dp, rowBytesL * 4, Xres, Yres);
 
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
-
 	cudaStatus = cudaDeviceSynchronize();
+	timer.Stop();
+	fprintf(stderr, "%g\n", timer.Elapsed());
+
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
 	}
@@ -294,7 +296,7 @@ __global__ void hq4x(uint32_t * sp, uint32_t srb, uint32_t * dp, uint32_t drb, i
 	int spL = Xres;
 
 	if (index < Xres) prevline = 0; else prevline = index - spL;
-	if (index > Xres*(Yres - 1)) nextline = 0; else nextline = index + spL;
+	if (index > Xres*(Yres - 2)) nextline = 0; else nextline = index + spL;
 
 	int indexVier = (row * Xres * FACTOR + col) * FACTOR;
 
