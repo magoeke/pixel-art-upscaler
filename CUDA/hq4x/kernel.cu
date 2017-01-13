@@ -18,7 +18,7 @@
 uint32_t   RGBtoYUV[16777216];
 
 void hqxInit();
-void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t*, uint32_t*, uint32_t*);
+void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t*, uint32_t*);
 __global__ void hq4x(uint32_t*, uint32_t*, int, int, uint32_t*, FunctionPointer*);
 __global__ void ConvertRGBtoYUV(uint32_t*, uint32_t*, uint32_t*, int);
 
@@ -38,8 +38,10 @@ int main()
 	Image *orgy = new Image("image.png");
 	uint32_t *input, *out, *yuv;
 	
+	// create RGBtoYUV table
 	hqxInit();
 	
+	// calculated yuv values for all pixels in the input image
 	cudaMalloc(&input, org->getHeight() * org->getWidth() * sizeof(uint32_t));
 	cudaMalloc(&out, org->getHeight() * org->getWidth() * sizeof(uint32_t));
 	cudaMalloc(&yuv, 16777216 * sizeof(uint32_t));
@@ -58,6 +60,8 @@ int main()
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
 	}
+
+	// save yuv image to image structure
 	cudaStatus = cudaMemcpy(orgy->getData(), out, orgy->getHeight() * orgy->getWidth() * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMalloc failed!");
@@ -65,7 +69,7 @@ int main()
 	cudaFree(yuv);
 	Image *res = new Image("image2.png", org->getWidth() * FACTOR, org->getHeight() * FACTOR);
 	
-	hq4x_32(org->getData(), res->getData(), org->getWidth(), org->getHeight(), orgy->getData(), input, out);
+	hq4x_32(org->getData(), res->getData(), org->getWidth(), org->getHeight(), input, out);
 	
 	std::cout << "Save new image" << std::endl;
 	res->saveImage();
@@ -103,7 +107,7 @@ void hqxInit(void)
 	}
 }
 
-void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, uint32_t *input, uint32_t *yuv)
+void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t *input, uint32_t *yuv)
 {
 	cudaError_t cudaStatus;
 	uint32_t *out;
@@ -111,13 +115,13 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, 
 	cudaDeviceProp deviceProp;
 	cudaGetDeviceProperties(&deviceProp, 0);
 	cudaStatus = cudaSetDevice(0);
-	//cudaMalloc(&input, Xres * Yres * sizeof(uint32_t));
 	cudaMalloc(&out, Xres * FACTOR * Yres * FACTOR * sizeof(uint32_t));
 	cudaMalloc(&fpo, 256 * sizeof(FunctionPointer));
-	initFunctions << <1, 1 >> > (fpo);
+	
+	// initialize kernelfunction in device memory
+	initFunctions <<<1, 1>>> (fpo);
 	cudaStatus = cudaDeviceSynchronize();
-	cudaMemcpy(input, sp, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
-	cudaMemcpy(yuv, orgy, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
+
 	int blockdimension = (Xres*Yres) > deviceProp.maxThreadsPerBlock ? (Xres*Yres) / deviceProp.maxThreadsPerBlock : 1;
 	
 	GpuTimer timer;
@@ -130,14 +134,17 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, 
 	}
 	cudaStatus = cudaDeviceSynchronize();
 	timer.Stop();
-	std::cout << "Timer:g" << timer.Elapsed() << std::endl;
+	std::cout << "Timer: " << timer.Elapsed() << std::endl;
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
 	}
+
+	// copy result to image
 	cudaStatus = cudaMemcpy(dp, out,Xres *FACTOR * Yres * FACTOR * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMalloc failed!");
 	}
+
 	cudaFree(input);
 	cudaFree(out);
 	cudaFree(yuv);
