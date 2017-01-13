@@ -40,10 +40,10 @@
 /* RGB to YUV lookup table */
 extern  uint32_t RGBtoYUV[16777216];
 
-static inline uint32_t rgb_to_yuv(uint32_t c)
+__device__ static inline uint32_t rgb_to_yuv(uint32_t c, uint32_t *array)
 {
 	// Mask against MASK_RGB to discard the alpha channel
-	return RGBtoYUV[MASK_RGB & c];
+	return array[MASK_RGB & c];
 }
 
 /* Test if there is difference in color */
