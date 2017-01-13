@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <IL/il.h>
 #include <stdint.h>
-//#include "common.h"
 #include "common.cuh"
 #include "pixel_functions.cuh"
 #include "image.h"
@@ -17,11 +16,10 @@
 #include <stdio.h>
 
 uint32_t   RGBtoYUV[16777216];
-uint32_t   YUV1, YUV2;
 
 void hqxInit();
 void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t*, uint32_t*, uint32_t*);
-__global__ void hq4x(uint32_t*, uint32_t, uint32_t*, uint32_t, int, int, uint32_t*, int, FunctionPointer*);
+__global__ void hq4x(uint32_t*, uint32_t*, int, int, uint32_t*, FunctionPointer*);
 __global__ void ConvertRGBtoYUV(uint32_t*, uint32_t*, uint32_t*, int);
 
 int main()
@@ -33,7 +31,6 @@ int main()
 	ilBindImage(handle);
 	cudaError_t cudaStatus;
 	cudaDeviceProp deviceProp;
-
 	cudaGetDeviceProperties(&deviceProp, 0);
 
 	std::cout << "Read images" << std::endl;
@@ -105,10 +102,10 @@ void hqxInit(void)
 		RGBtoYUV[c] = (y << 16) + (u << 8) + v;
 	}
 }
+
 void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, uint32_t *input, uint32_t *yuv)
 {
 	cudaError_t cudaStatus;
-	uint32_t rowBytesL = Xres * FACTOR;
 	uint32_t *out;
 	FunctionPointer *fpo;
 	cudaDeviceProp deviceProp;
@@ -125,7 +122,7 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, 
 	
 	GpuTimer timer;
 	timer.Start();
-	hq4x<<<blockdimension, deviceProp.maxThreadsPerBlock>>>(input, rowBytesL, out, rowBytesL*FACTOR, Xres, Yres, yuv, deviceProp.maxThreadsPerBlock, fpo);
+	hq4x<<<blockdimension, deviceProp.maxThreadsPerBlock>>>(input, out, Xres, Yres, yuv, fpo);
 	
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
@@ -146,14 +143,15 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy, 
 	cudaFree(yuv);
 	cudaFree(fpo);
 }
-__global__ void hq4x(uint32_t * sp, uint32_t srb, uint32_t * dp, uint32_t drb, int Xres, int Yres, uint32_t *yuv, int maxThreads, FunctionPointer *functions)
+
+__global__ void hq4x(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t *yuv, FunctionPointer *functions)
 {
 	int  k;
 	int  prevline, nextline;
 	uint32_t w[10];
 	uint32_t y[10];
 	uint32_t yuv1, yuv2;
-	int index = threadIdx.x + maxThreads * blockIdx.x;
+	int index = threadIdx.x + blockDim.x * blockIdx.x;
 	int row = index / Xres;
 	int col = index % Xres;
 	int dpL = Xres*FACTOR;
