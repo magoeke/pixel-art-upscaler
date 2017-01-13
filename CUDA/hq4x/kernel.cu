@@ -22,8 +22,7 @@ uint32_t   YUV1, YUV2;
 void hqxInit();
 void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t*, uint32_t*, uint32_t*);
 __global__ void hq4x(uint32_t*, uint32_t, uint32_t*, uint32_t, int, int, uint32_t*, int, FunctionPointer*);
-//void convertToYUV(Image*, Image*);
-__global__ void ConvertREGtoYUV(uint32_t*, uint32_t*, uint32_t*, int);
+__global__ void ConvertRGBtoYUV(uint32_t*, uint32_t*, uint32_t*, int);
 
 int main()
 {
@@ -51,7 +50,8 @@ int main()
 	cudaMemcpy(input, org->getData(), org->getHeight() * org->getWidth() * sizeof(uint32_t), cudaMemcpyHostToDevice);
 	cudaMemcpy(yuv, RGBtoYUV, 16777216 * sizeof(uint32_t), cudaMemcpyHostToDevice);
 	
-	ConvertREGtoYUV <<<((org->getHeight() * org->getWidth()) / deviceProp.maxThreadsPerBlock)+1, deviceProp.maxThreadsPerBlock >>>(input, out, yuv, deviceProp.maxThreadsPerBlock);
+	ConvertRGBtoYUV <<<((org->getHeight() * org->getWidth()) / deviceProp.maxThreadsPerBlock)+1, deviceProp.maxThreadsPerBlock >>>(input, out, yuv, deviceProp.maxThreadsPerBlock);
+	
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
@@ -66,12 +66,13 @@ int main()
 		fprintf(stderr, "cudaMalloc failed!");
 	}
 	cudaFree(yuv);
-	//convertToYUV(orgy, org);
 	Image *res = new Image("image2.png", org->getWidth() * FACTOR, org->getHeight() * FACTOR);
 	
 	hq4x_32(org->getData(), res->getData(), org->getWidth(), org->getHeight(), orgy->getData(), input, out);
+	
 	std::cout << "Save new image" << std::endl;
 	res->saveImage();
+	
 	std::cout << "Free space" << std::endl;
 	delete org;
 	delete res;
@@ -81,12 +82,15 @@ int main()
 		fprintf(stderr, "cudaDeviceReset failed!");
 		return 1;
 	}
-    return 0;
+    
+	return 0;
 }
-__global__ void ConvertREGtoYUV(uint32_t *sp, uint32_t *br, uint32_t *array, int maxThreads) {
+
+__global__ void ConvertRGBtoYUV(uint32_t *sp, uint32_t *br, uint32_t *array, int maxThreads) {
 	int i = threadIdx.x + maxThreads * blockIdx.x;
 	br[i] = rgb_to_yuv(sp[i],array);
 }
+
 void hqxInit(void)
 {
 	/* Initalize RGB to YUV lookup table */
