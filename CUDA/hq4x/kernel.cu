@@ -122,11 +122,13 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t *input, 
 	initFunctions <<<1, 1>>> (fpo);
 	cudaStatus = cudaDeviceSynchronize();
 
-	int blockdimension = (Xres*Yres) > deviceProp.maxThreadsPerBlock ? (Xres*Yres) / deviceProp.maxThreadsPerBlock : 1;
+	int threadSize = 256;
+
+	int blockdimension = (Xres*Yres)%threadSize == 0 ? (Xres*Yres) / threadSize : (Xres*Yres) / threadSize + 1;
 	
 	GpuTimer timer;
 	timer.Start();
-	hq4x<<<blockdimension, deviceProp.maxThreadsPerBlock>>>(input, out, Xres, Yres, yuv, fpo);
+	hq4x<<<blockdimension, threadSize >>>(input, out, Xres, Yres, yuv, fpo);
 	
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
