@@ -252,12 +252,14 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy)
 	cudaMemcpy(input, sp, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
 	cudaMemcpy(yuv, orgy, Xres * Yres * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
-	int blockdimension = ((Xres*Yres) > deviceProp.maxThreadsPerBlock) ? ((Xres*Yres) / deviceProp.maxThreadsPerBlock) : 1;
-	//fprintf(stderr, "%d", blockdimension);
+	int threadSize = 256;
+
+	int blockdimension = (Xres*Yres) > threadSize ? (Xres*Yres) / threadSize +1 : 1;
+
 	GpuTimer timer;
 	timer.Start();
 
-	hq4x<<<blockdimension, deviceProp.maxThreadsPerBlock>>>(input, rowBytesL, out, rowBytesL*FACTOR, Xres, Yres, yuv, deviceProp.maxThreadsPerBlock);
+	hq4x<<<blockdimension, threadSize>>>(input, rowBytesL, out, rowBytesL*FACTOR, Xres, Yres, yuv, threadSize);
 	//hq4x_32_rb(sp, rowBytesL, dp, rowBytesL * 4, Xres, Yres);
 
 	cudaStatus = cudaDeviceSynchronize();
