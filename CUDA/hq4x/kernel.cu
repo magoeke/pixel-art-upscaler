@@ -254,7 +254,7 @@ void hq4x_32(uint32_t * sp, uint32_t * dp, int Xres, int Yres, uint32_t * orgy)
 
 	int threadSize = 256;
 
-	int blockdimension = (Xres*Yres) > threadSize ? (Xres*Yres) / threadSize +1 : 1;
+	int blockdimension = (Xres*Yres)%threadSize == 0 ? (Xres*Yres) / threadSize : (Xres*Yres) / threadSize + 1;
 
 	GpuTimer timer;
 	timer.Start();
